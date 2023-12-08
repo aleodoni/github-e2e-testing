@@ -1,0 +1,78 @@
+version: "3.1"
+
+services:
+  ### POSTGRES ###
+  postgresql:
+    image: postgres:${PG_VERSION}
+    restart: "no"
+    environment:
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASS}
+      PGDATA: /data/postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./sql/keycloak.role.sql:/docker-entrypoint-initdb.d/keycloak.role.sql
+      # - ./apps/report-api/sql/1.database.sql:/docker-entrypoint-initdb.d/1.database-report.sql
+      # - ./apps/voting-api/sql/1.database.sql:/docker-entrypoint-initdb.d/1.database-voting.sql
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=logical"
+      - "-c"
+      - "max_wal_senders=1"
+      - "-c"
+      - "max_replication_slots=1"
+      - "-c"
+      - "log_min_error_statement=fatal"
+      - "-c"
+      - "listen_addresses=*"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -d bitnami_keycloak -U keycloak"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  ### KAFKA ###
+  # kafka:
+  #   image: obsidiandynamics/kafka
+  #   restart: "no"
+  #   ports:
+  #     - "2181:2181"
+  #     - "9092:9092"
+  #   environment:
+  #     KAFKA_LISTENERS: "INTERNAL://:29092,EXTERNAL://:9092"
+  #     KAFKA_ADVERTISED_LISTENERS: "INTERNAL://kafka:29092,EXTERNAL://localhost:9092"
+  #     # KAFKA_ADVERTISED_LISTENERS: "INTERNAL://kafka:29092,EXTERNAL://:9092"
+  #     KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT"
+  #     KAFKA_INTER_BROKER_LISTENER_NAME: "INTERNAL"
+  #     KAFKA_ZOOKEEPER_SESSION_TIMEOUT: "6000"
+  #     KAFKA_RESTART_ATTEMPTS: "10"
+  #     KAFKA_RESTART_DELAY: "5"
+  #     ZOOKEEPER_AUTOPURGE_PURGE_INTERVAL: "0"
+
+  ### KEYCLOAK ###
+  keycloak:
+    image: bitnami/keycloak:latest
+    restart: "no"
+    environment:
+      KEYCLOAK_DATABASE_HOST: postgresql
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: keycloak
+      KEYCLOAK_DATABASE_USER: keycloak
+      KEYCLOAK_DATABASE_PASSWORD: keycloak
+      KEYCLOAK_DATABASE_SCHEMA: keycloak
+    ports:
+      - 8080:8080
+    depends_on:
+      - postgresql
+    volumes:
+      - ./volumes/keycloak/realm.json:/opt/bitnami/keycloak/data/import/realm.json
+    entrypoint: 'kc.sh start-dev --import-realm'
+
+volumes:
+  db_data:
