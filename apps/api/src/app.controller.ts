@@ -7,7 +7,7 @@ export class AppController implements OnModuleInit, OnModuleDestroy {
 
   @Get()
   getHello(): string {
-    return 'api is alive';
+    return 'api is alive...';
   }
 
   async onModuleDestroy() {
